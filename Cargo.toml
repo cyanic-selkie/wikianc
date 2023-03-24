@@ -1,0 +1,22 @@
+[package]
+name = "wikianc"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+apache-avro = "0.14.0"
+arrow2 = { version = "0.16.0", features = ["io_parquet_zstd", "io_parquet"] }
+arrow2_convert = "0.4.2"
+clap = { version = "4.1.13", features = ["derive"] }
+hashbrown = "0.13.2"
+htmlescape = "0.3.1"
+itertools = "0.10.5"
+lazy-regex = "2.5.0"
+rand = "0.8.5"
+rayon = "1.7.0"
+serde = { version = "1.0.158", features = ["derive"] }
+serde_json = "1.0.94"
+unicode-normalization = "0.1.22"
+uuid = { version = "1.3.0", features = ["fast-rng", "v4"] }
