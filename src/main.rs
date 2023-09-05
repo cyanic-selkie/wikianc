@@ -339,7 +339,10 @@ fn main() {
         file.lines()
             .par_bridge()
             .filter_map(|line| {
-                let article: Article = serde_json::from_str(&line.unwrap()).unwrap();
+                let article: Article = match serde_json::from_str(&line.unwrap()) {
+                    Ok(article) => article,
+                    Err(_) => return None,
+                };
 
                 let article_title = article.title.replace(' ', "_");
 
