@@ -19,10 +19,11 @@ use hashbrown::HashMap;
 use htmlescape::decode_html;
 use itertools::Itertools;
 use lazy_regex::regex_replace_all;
-use rand::distributions::WeightedIndex;
+use rand::distributions::{Bernoulli, Distribution};
 use rand::prelude::*;
 use rayon::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize};
+use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -280,7 +281,7 @@ fn write_dataset(split: Vec<DataPoint>, path: &str) {
     writer.end(None).unwrap();
 }
 
-fn print_statistics(dataset: &Vec<DataPoint>) {
+fn write_statistics(dataset: &Vec<DataPoint>, path: &str) {
     let articles = dataset.iter().map(|x| &x.article_title).unique().count();
     let paragraphs = dataset.len();
     let anchors = dataset
@@ -302,13 +303,14 @@ fn print_statistics(dataset: &Vec<DataPoint>) {
         .filter(|x| x.pageid.is_some())
         .count();
 
-    dbg!(
-        articles,
-        paragraphs,
-        anchors,
-        anchors_with_qids,
-        anchors_with_pageids
-    );
+    fs::write(
+        path,
+        format!(
+            "{},{},{},{},{}",
+            articles, paragraphs, anchors, anchors_with_qids, anchors_with_pageids
+        ),
+    )
+    .unwrap();
 }
 
 fn main() {
@@ -316,7 +318,6 @@ fn main() {
 
     let mut train = vec![];
     let mut validation = vec![];
-    let mut test = vec![];
     {
         let mut mapping = HashMap::new();
         let reader = File::open(&args.input_wiki2qid).unwrap();
@@ -328,12 +329,10 @@ fn main() {
 
         let mapping = Arc::new(mapping);
 
-        let weights = [80, 10, 10];
-        let distribution = Arc::new(WeightedIndex::new(&weights).unwrap());
+        let distribution = Arc::new(Bernoulli::new(0.9).unwrap());
 
         let train = Arc::new(Mutex::new(&mut train));
         let validation = Arc::new(Mutex::new(&mut validation));
-        let test = Arc::new(Mutex::new(&mut test));
 
         let file = BufReader::new(File::open(&args.input_wiki).unwrap());
 
@@ -401,18 +400,28 @@ fn main() {
             .flatten()
             .for_each(|example| {
                 let mut split = match distribution.sample(&mut thread_rng()) {
-                    0 => train.lock().unwrap(),
-                    1 => validation.lock().unwrap(),
-                    _ => test.lock().unwrap(),
+                    true => train.lock().unwrap(),
+                    false => validation.lock().unwrap(),
                 };
 
                 (*split).push(example);
             });
     }
 
-    print_statistics(&train);
-    print_statistics(&validation);
-    print_statistics(&test);
+    write_statistics(
+        &train,
+        Path::new(&args.output_dir)
+            .join("train_statistics.csv")
+            .to_str()
+            .unwrap(),
+    );
+    write_statistics(
+        &validation,
+        Path::new(&args.output_dir)
+            .join("validation_statistics.csv")
+            .to_str()
+            .unwrap(),
+    );
 
     write_dataset(
         train,
@@ -425,13 +434,6 @@ fn main() {
         validation,
         Path::new(&args.output_dir)
             .join("validation.parquet")
-            .to_str()
-            .unwrap(),
-    );
-    write_dataset(
-        test,
-        Path::new(&args.output_dir)
-            .join("test.parquet")
             .to_str()
             .unwrap(),
     );
