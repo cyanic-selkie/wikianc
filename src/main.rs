@@ -1,5 +1,3 @@
-#![feature(iter_array_chunks)]
-
 use apache_avro::{from_value, Reader};
 use arrow2::{
     array::Array,
@@ -253,7 +251,8 @@ fn write_dataset(split: Vec<DataPoint>, path: &str) {
 
     let chunks = split
         .iter()
-        .array_chunks::<100_000>()
+        .chunks(100_000)
+        .into_iter()
         .map(|examples| {
             let array: Box<dyn Array> = examples.try_into_arrow().unwrap();
             let array = array
