@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+
+LANGUAGES=()
+
+OUTPUT_FILENAME="articles.ndjson"
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --wiki-dir)
+      WIKI_DIR="$2"
+      shift
+      shift
+      ;;
+    --wiki2qid-dir)
+      WIKI2QID_DIR="$2"
+      shift
+      shift
+      ;;
+    --output-dir)
+      OUTPUT_DIR="$2"
+      shift
+      shift
+      ;;
+    --language)
+      LANGUAGES+=("$2")
+      shift
+      shift
+      ;;
+    -*|--*)
+      echo "Unknown argument \"$1\"."
+      exit 1
+      ;;
+    *)
+      echo "Positional arguments (i.e., \"$1\") aren't supported."
+      exit 1;
+      shift
+      ;;
+  esac
+done
+
+if [ -z "$WIKI_DIR" ]; then
+  echo "You must provide the wikipedia dump directory for the data.";
+  exit 1;
+fi
+
+if [ -z "$WIKI2QID_DIR" ]; then
+  echo "You must provide the wiki2qid mapping directory for the data.";
+  exit 1;
+fi
+
+if [ -z "$OUTPUT_DIR" ]; then
+  echo "You must provide an output directory for the data.";
+  exit 1;
+fi
+
+if [ ${#LANGUAGES[@]} -eq 0 ]; then
+  echo "You must provide at least one language.";
+  exit 1;
+fi
+
+mkdir -p "$OUTPUT_DIR"
+
+for LANGUAGE in "${LANGUAGES[@]}"
+do
+  mkdir -p "$OUTPUT_DIR/$LANGUAGE"
+done
+
+for LANGUAGE in "${LANGUAGES[@]}"
+do
+  echo $LANGUAGE
+  cargo run --release -- --input-wiki "$WIKI_DIR/$LANGUAGE/index.ndjson" --input-wiki2qid "$WIKI2QID_DIR/$LANGUAGE/wiki2qid.avro" --output-dir "$OUTPUT_DIR/$LANGUAGE"
+done
